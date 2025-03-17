@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YubiKeyPivLib", "YubiKeyPivLib\YubiKeyPivLib.csproj", "{4EFF5EED-795B-4B31-A261-6FD08F2F9B2A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YubiKeyPivTool", "YubiKeyPivTool\YubiKeyPivTool.csproj", "{653B8D7B-352B-4A61-B6C3-E7344C29AF4D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{4EFF5EED-795B-4B31-A261-6FD08F2F9B2A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4EFF5EED-795B-4B31-A261-6FD08F2F9B2A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4EFF5EED-795B-4B31-A261-6FD08F2F9B2A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4EFF5EED-795B-4B31-A261-6FD08F2F9B2A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{653B8D7B-352B-4A61-B6C3-E7344C29AF4D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{653B8D7B-352B-4A61-B6C3-E7344C29AF4D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{653B8D7B-352B-4A61-B6C3-E7344C29AF4D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{653B8D7B-352B-4A61-B6C3-E7344C29AF4D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
