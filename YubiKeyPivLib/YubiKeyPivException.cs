@@ -1,6 +1,8 @@
+using System;
+
 namespace YubiKeyPivLib
 {
-    public class YubiKeyPivException
+    public class YubiKeyPivException : Exception
     {
         
     }

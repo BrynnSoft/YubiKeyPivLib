@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
@@ -22,10 +23,30 @@ namespace YubiKeyPivLib
             }
         }
 
+        private void ThrowIfError(YubiKeyPivNative.ykpiv_rc rc)
+        {
+            if (rc != YubiKeyPivNative.ykpiv_rc.YKPIV_OK)
+            {
+                throw new YubiKeyPivException();
+            }
+        }
+
         public void Dispose()
         {
-            YubiKeyPivNative.ykpiv_done(_state);
-            Marshal.FreeHGlobal(_state);
+            try
+            {
+                var rc = YubiKeyPivNative.ykpiv_done(_state);
+                ThrowIfError(rc);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(_state);
+            }
         }
 
         public string GetLibraryVersion()
@@ -35,21 +56,24 @@ namespace YubiKeyPivLib
 
         public void Connect(string wanted)
         {
-            YubiKeyPivNative.ykpiv_connect(_state, wanted);
+            var rc = YubiKeyPivNative.ykpiv_connect(_state, wanted);
+            ThrowIfError(rc);
         }
 
         public IEnumerable<string> GetReaders()
         {
-            var len = 256;
+            var len = 2048;
             var readers = new char[len];
             var rc = YubiKeyPivNative.ykpiv_list_readers(_state, readers, ref len);
+            ThrowIfError(rc);
             var str = new string(readers).TrimEnd('\0');
             return str.Split('\0');
         }
 
         public void Disconnect()
         {
-            YubiKeyPivNative.ykpiv_disconnect(_state);
+            var rc = YubiKeyPivNative.ykpiv_disconnect(_state);
+            ThrowIfError(rc);
         }
 
         public string GetVersion()
@@ -57,6 +81,7 @@ namespace YubiKeyPivLib
             var len = 32;
             var version = new char[len];
             var rc = YubiKeyPivNative.ykpiv_get_version(_state, version, len);
+            ThrowIfError(rc);
             var str = new string(version);
             return str;
         }
@@ -64,7 +89,8 @@ namespace YubiKeyPivLib
         public uint GetSerial()
         {
             uint serial = 0;
-            YubiKeyPivNative.ykpiv_get_serial(_state, ref serial);
+            var rc = YubiKeyPivNative.ykpiv_get_serial(_state, ref serial);
+            ThrowIfError(rc);
             return serial;
         }
 
@@ -111,6 +137,11 @@ namespace YubiKeyPivLib
                 
             }
 
+            if (algorithm == YubiKeyAlgorithm.RSA_1024)
+            {
+                System.Diagnostics.Debug.WriteLine("\nWARNING. The use of RSA1024 is discouraged by the National Institute of Standards and Technology (NIST). See https://www.yubico.com/blog/comparing-asymmetric-encryption-algorithms\n\n");
+            }
+
             switch (algorithm)
             {
                 case YubiKeyAlgorithm.RSA_1024:
@@ -133,6 +164,38 @@ namespace YubiKeyPivLib
                 }
                 case YubiKeyAlgorithm.ECCP_256:
                 case YubiKeyAlgorithm.ECCP_384:
+                {
+                    var ecParams = new ECParameters
+                    {
+                        Curve = algorithm == YubiKeyAlgorithm.ECCP_256
+                            ? ECCurve.NamedCurves.nistP256
+                            : ECCurve.NamedCurves.nistP384
+                    };
+
+                    var pointBytes = new byte[pointSize];
+                    Marshal.Copy(point, pointBytes, 0, (int)pointSize);
+                    YubiKeyPivNative.ykpiv_util_free(_state, point);
+                    
+                    if (pointBytes[0] != 0x04)
+                    {
+                        throw new Exception("Invalid ECP Curve");
+                    }
+                    
+                    var keyLength = algorithm == YubiKeyAlgorithm.ECCP_256 ? 256 : 384;
+
+                    var x = pointBytes.AsSpan(1, keyLength);
+                    var y = pointBytes.AsSpan(keyLength + 1, keyLength);
+
+                    ecParams.Q = new ECPoint()
+                    {
+                        X = x.ToArray(),
+                        Y = y.ToArray()
+                    };
+                    
+                    var key = ECDsa.Create(ecParams);
+                    
+                    return new PublicKey(key);
+                }
                 case YubiKeyAlgorithm.ED_25519:
                     YubiKeyPivNative.ykpiv_util_free(_state, point);
                     throw new NotImplementedException();
@@ -140,6 +203,52 @@ namespace YubiKeyPivLib
                 default:
                     throw new NotImplementedException();
             }
+        }
+
+        public X509Certificate2 GetCertInSlot(YubiKeySlot slot)
+        {
+            var certPtr = IntPtr.Zero;
+            uint certSize = 0;
+            
+            var rc = YubiKeyPivNative.ykpiv_util_read_cert(_state, (byte)slot, ref certPtr,  ref certSize);
+
+            if (rc != YubiKeyPivNative.ykpiv_rc.YKPIV_OK)
+            {
+                
+            }
+            
+            var certData = new byte[certSize];
+            Marshal.Copy(certPtr, certData, 0, (int)certSize);
+            YubiKeyPivNative.ykpiv_util_free(_state, certPtr);
+            
+            return X509CertificateLoader.LoadCertificate(certData);
+        }
+
+        public void WriteCertToSlot(YubiKeySlot slot, X509Certificate2 cert)
+        {
+            var certData = cert.GetRawCertData();
+            var compress = YubiKeyCertInfo.Uncompressed;
+
+            if (certData.Length > 3072)
+            {
+                using var ms = new MemoryStream();
+                using var gzip = new GZipStream(ms, CompressionMode.Compress);
+                gzip.Write(certData, 0, certData.Length);
+                certData = ms.ToArray();
+                compress = YubiKeyCertInfo.Gzip;
+            }
+            
+            var rc = YubiKeyPivNative.ykpiv_util_write_cert(_state, (byte)slot, certData, (uint)certData.Length, (byte)compress);
+
+            if (rc != YubiKeyPivNative.ykpiv_rc.YKPIV_OK)
+            {
+                
+            }
+        }
+
+        public void PerformGlobalReset()
+        {
+            YubiKeyPivNative.ykpiv_global_reset(_state);
         }
     }
 }

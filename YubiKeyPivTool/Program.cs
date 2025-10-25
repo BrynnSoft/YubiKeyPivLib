@@ -18,6 +18,9 @@ foreach (var reader in piv.GetReaders())
         foreach (var key in keys)
         {
             Console.WriteLine($"{key.Slot}({(byte)key.Slot:X}): {key.Certificate.Subject}");
+
+            var cert = piv.GetCertInSlot(key.Slot);
+            Console.WriteLine($"{cert}");
         }
     }
     else

@@ -73,5 +73,14 @@ namespace YubiKeyPivLib
         
         [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
         internal static extern ykpiv_rc ykpiv_util_generate_key(IntPtr state, byte slot, byte algorithm, byte pinPolicy, byte touchPolicy, ref IntPtr modulus, ref uint modulusLength, ref IntPtr exponent, ref uint exponentLength, ref IntPtr point, ref uint pointLength);
+        
+        [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ykpiv_rc ykpiv_verify(IntPtr state, string? pin, ref int tries);
+
+        [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ykpiv_rc ykpiv_get_pin_retries(IntPtr state, ref int tries);
+        
+        [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ykpiv_rc ykpiv_global_reset(IntPtr state);
     }
 }
