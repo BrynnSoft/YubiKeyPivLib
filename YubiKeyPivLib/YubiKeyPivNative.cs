@@ -72,6 +72,9 @@ namespace YubiKeyPivLib
         internal static extern ykpiv_rc ykpiv_util_write_cert(IntPtr state, byte slot, byte[] data, uint dataLength, byte certInfo);
         
         [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ykpiv_rc ykpiv_util_delete_cert(IntPtr state, byte slot);
+        
+        [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
         internal static extern ykpiv_rc ykpiv_util_generate_key(IntPtr state, byte slot, byte algorithm, byte pinPolicy, byte touchPolicy, ref IntPtr modulus, ref uint modulusLength, ref IntPtr exponent, ref uint exponentLength, ref IntPtr point, ref uint pointLength);
         
         [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
@@ -82,5 +85,40 @@ namespace YubiKeyPivLib
         
         [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
         internal static extern ykpiv_rc ykpiv_global_reset(IntPtr state);
+        
+        [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ykpiv_rc ykpiv_util_reset(IntPtr state);
+        
+        
+        [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ykpiv_rc ykpiv_util_get_cccid(IntPtr state, IntPtr ccid);
+        
+        [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ykpiv_rc ykpiv_util_set_cccid(IntPtr state, IntPtr ccid);
+        
+        [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ykpiv_rc ykpiv_util_get_cardid(IntPtr state, IntPtr cardid);
+        
+        [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ykpiv_rc ykpiv_util_set_cardid(IntPtr state, IntPtr cardid);
+
+        [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ykpiv_rc ykpiv_authenticate2(IntPtr state, byte[]? key, int keyLength);
+        
+        [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ykpiv_rc ykpiv_util_get_protected_mgm(IntPtr state, IntPtr mgm);
+        
+        [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ykpiv_rc ykpiv_set_mgmkey(IntPtr state, byte[] mgm);
+        
+        [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ykpiv_rc ykpiv_change_pin(IntPtr state, string currentPin, int currentPinLength, string newPin, int newPinLength, ref int tries);
+        
+        [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ykpiv_rc ykpiv_change_puk(IntPtr state, string currentPuk, int currentPukLength, string newPuk, int newPukLength, ref int tries);
+
+        [DllImport("ykpiv", CallingConvention = CallingConvention.Cdecl)]
+        internal static extern ykpiv_rc ykpiv_unblock_pin(IntPtr state, string puk, int pukLength, string newPin, int newPinLength, ref int tries);
+
     }
 }

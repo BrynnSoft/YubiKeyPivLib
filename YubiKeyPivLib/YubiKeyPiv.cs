@@ -15,18 +15,20 @@ namespace YubiKeyPivLib
         
         public YubiKeyPiv(bool verbose = false)
         {
-            _state = Marshal.AllocHGlobal(3000);
+            //_state = Marshal.AllocHGlobal(3000);
+            _state = IntPtr.Zero;
             var result = YubiKeyPivNative.ykpiv_init(ref _state, (verbose ? 1 : 0));
-            if (result != YubiKeyPivNative.ykpiv_rc.YKPIV_OK)
-            {
-                Marshal.FreeHGlobal(_state);
-            }
+            ThrowIfError(result);
         }
 
         private void ThrowIfError(YubiKeyPivNative.ykpiv_rc rc)
         {
             if (rc != YubiKeyPivNative.ykpiv_rc.YKPIV_OK)
             {
+                switch (rc)
+                {
+                    
+                }
                 throw new YubiKeyPivException();
             }
         }
@@ -42,10 +44,6 @@ namespace YubiKeyPivLib
             {
                 Console.WriteLine(e);
                 throw;
-            }
-            finally
-            {
-                Marshal.FreeHGlobal(_state);
             }
         }
 
@@ -100,6 +98,7 @@ namespace YubiKeyPivLib
             var data = new IntPtr();
             uint dataSize = 2048;
             var rc = YubiKeyPivNative.ykpiv_util_list_keys(_state, ref keyCount, ref data, ref dataSize);
+            ThrowIfError(rc);
             var keysData = new byte[dataSize];
             Marshal.Copy(data, keysData, 0, (int)dataSize);
             YubiKeyPivNative.ykpiv_util_free(_state, data);
@@ -132,10 +131,7 @@ namespace YubiKeyPivLib
             
             var rc = YubiKeyPivNative.ykpiv_util_generate_key(_state, (byte)slot, (byte)algorithm, (byte)pinPolicy, (byte)touchPolicy, ref mod, ref modSize, ref exp, ref expSize, ref point, ref pointSize);
 
-            if (rc != YubiKeyPivNative.ykpiv_rc.YKPIV_OK)
-            {
-                
-            }
+            ThrowIfError(rc);
 
             if (algorithm == YubiKeyAlgorithm.RSA_1024)
             {
@@ -212,10 +208,7 @@ namespace YubiKeyPivLib
             
             var rc = YubiKeyPivNative.ykpiv_util_read_cert(_state, (byte)slot, ref certPtr,  ref certSize);
 
-            if (rc != YubiKeyPivNative.ykpiv_rc.YKPIV_OK)
-            {
-                
-            }
+            ThrowIfError(rc);
             
             var certData = new byte[certSize];
             Marshal.Copy(certPtr, certData, 0, (int)certSize);
@@ -239,16 +232,145 @@ namespace YubiKeyPivLib
             }
             
             var rc = YubiKeyPivNative.ykpiv_util_write_cert(_state, (byte)slot, certData, (uint)certData.Length, (byte)compress);
+            ThrowIfError(rc);
+        }
 
-            if (rc != YubiKeyPivNative.ykpiv_rc.YKPIV_OK)
-            {
-                
-            }
+        public void DeleteCertInSlot(YubiKeySlot slot)
+        {
+            var rc = YubiKeyPivNative.ykpiv_util_delete_cert(_state, (byte)slot);
+            ThrowIfError(rc);
+        }
+
+        public void PerformReset()
+        {
+            var rc = YubiKeyPivNative.ykpiv_util_reset(_state);
+            ThrowIfError(rc);
         }
 
         public void PerformGlobalReset()
         {
-            YubiKeyPivNative.ykpiv_global_reset(_state);
+            var rc = YubiKeyPivNative.ykpiv_global_reset(_state);
+            ThrowIfError(rc);
+        }
+
+        /// <summary>
+        /// Sets the Card Id of the connected YubiKey
+        /// </summary>
+        /// <param name="cardId">Optional Card Id (set to random if null)</param>
+        public void SetCardId(byte[]? cardId)
+        {
+            var cardIdPtr = IntPtr.Zero;
+
+            if (cardId != null)
+            {
+                cardIdPtr = Marshal.AllocHGlobal(16);
+                Marshal.Copy(cardId, 0, cardIdPtr, 16);
+            }
+            
+            var rc = YubiKeyPivNative.ykpiv_util_set_cardid(_state, cardIdPtr);
+            ThrowIfError(rc);
+        }
+
+        public byte[] GetCardId()
+        {
+            var cardIdPtr = Marshal.AllocHGlobal(16);
+            var rc = YubiKeyPivNative.ykpiv_util_get_cardid(_state, cardIdPtr);
+            ThrowIfError(rc);
+            return Marshal.PtrToStructure<byte[]>(cardIdPtr);
+        }
+        
+        /// <summary>
+        /// Sets the CCC Id of the connected YubiKey
+        /// </summary>
+        /// <param name="cccId">Optional Id (set to random value if null)</param>
+        public void SetCCCId(byte[]? cccId)
+        {
+            var cccIdPtr = IntPtr.Zero;
+            if (cccId != null)
+            {
+                cccIdPtr = Marshal.AllocHGlobal(14);
+                Marshal.Copy(cccId, 0, cccIdPtr, 14);
+            }
+
+            var rc = YubiKeyPivNative.ykpiv_util_set_cccid(_state, cccIdPtr);
+            ThrowIfError(rc);
+        }
+
+        public byte[] GetCCCId()
+        {
+            var cccIdPtr = Marshal.AllocHGlobal(14);
+            var rc = YubiKeyPivNative.ykpiv_util_get_cccid(_state, cccIdPtr);
+            ThrowIfError(rc);
+            return Marshal.PtrToStructure<byte[]>(cccIdPtr);
+        }
+
+        public int VerifyPin(string pin)
+        {
+            var tries = 0;
+            var rc = YubiKeyPivNative.ykpiv_verify(_state, pin, ref tries);
+            ThrowIfError(rc);
+            return tries;
+        }
+
+        public void Authenticate(byte[]? managmentKey)
+        {
+            var rc = YubiKeyPivNative.ykpiv_authenticate2(_state, managmentKey, managmentKey?.Length ?? 0);
+            ThrowIfError(rc);
+        }
+
+        public byte[] GetManagementKey()
+        {
+            var mgmPtr = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(IntPtr)) + 32);
+            try
+            {
+                var rc = YubiKeyPivNative.ykpiv_util_get_protected_mgm(_state, mgmPtr);
+                ThrowIfError(rc);
+                var keyLen = Marshal.ReadIntPtr(mgmPtr).ToInt32();
+                var key = new byte[keyLen];
+                Marshal.Copy(mgmPtr, key, Marshal.SizeOf(typeof(IntPtr)), key.Length);
+                return key;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(mgmPtr);
+            }
+        }
+
+        public void SetManagementKey(byte[] key)
+        {
+            if (key.Length != 24)
+            {
+                throw new ArgumentException("key length must be 24 bytes");
+            }
+
+            var rc = YubiKeyPivNative.ykpiv_set_mgmkey(_state, key);
+            ThrowIfError(rc);
+        }
+
+        public void ChangePin(string oldPin, string newPin)
+        {
+            var tries = 0;
+            var rc = YubiKeyPivNative.ykpiv_change_pin(_state, oldPin, oldPin.Length, newPin, newPin.Length, ref tries);
+            ThrowIfError(rc);
+        }
+
+        public void ChangePuk(string oldPuk, string newPuk)
+        {
+            var tries = 0;
+            var rc = YubiKeyPivNative.ykpiv_change_puk(_state, oldPuk, oldPuk.Length, newPuk, newPuk.Length, ref tries);
+            ThrowIfError(rc);
+        }
+
+        public void UnblockPin(string puk, string newPin)
+        {
+            var tries = 0;
+            var rc = YubiKeyPivNative.ykpiv_unblock_pin(_state, puk, puk.Length, newPin, newPin.Length, ref tries);
+            ThrowIfError(rc);
         }
     }
 }
